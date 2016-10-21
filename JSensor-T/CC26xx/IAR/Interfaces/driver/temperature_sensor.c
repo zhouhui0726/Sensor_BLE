@@ -420,7 +420,7 @@ counter计数如果超过16，则高电平长，应读1.
 j++8个换成下一个数据
 */
     uint8_t dht11_val[5];
-    uint8_t lststate=HIGH;         //last state
+    uint8_t laststate=HIGH;         //last state
     uint8_t counter=0;
     uint8_t j=0,i=0;
     memset(dht11_val,0,5);
@@ -437,13 +437,13 @@ j++8个换成下一个数据
     for(i=0;i<85;i++)         
     {
       counter=0;
-      while(DHT11_PIN_GetIN()== lststate){     //read pin state to see if dht responsed. if dht always high for 255 + 1 times, break this while circle
+      while(DHT11_PIN_GetIN()== laststate){     //read pin state to see if dht responsed. if dht always high for 255 + 1 times, break this while circle
         counter++;
         delay_us(1);
         if(counter==255)
           break;
       }
-      lststate=DHT11_PIN_GetIN();             //read current state and store as last state. 
+      laststate=DHT11_PIN_GetIN();             //read current state and store as last state. 
       if(counter==255)                            //if dht always high for 255 + 1 times, break this for circle
         break;
       // top 3 transistions are ignored, maybe aim to wait for dht finish response signal
