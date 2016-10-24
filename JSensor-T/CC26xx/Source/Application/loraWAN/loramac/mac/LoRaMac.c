@@ -947,8 +947,11 @@ static void R3_R4_timer_syn(uint8_t *payload, uint32_t TimeOnAir)
     TimeOnAir += 8;
     system_time += TimeOnAir;
     System_printf("system_time : %d, r4_interval : %d\r\n", system_time, r4_interval);
-    
+
+//设备是A类的时候就不用主动接收心跳或者下行数据
+#ifndef  LORAWAN_CLASSA_ENABLE   
     Restart_R3_R4_timer();
+#endif
     
 }
 
@@ -1674,6 +1677,7 @@ void OnMacStateCheckTimerEvent( void )
                     UpLinkCounter++;
                 }
                 
+#ifndef  LORAWAN_CLASSA_ENABLE                   
                 if (++send_error_cnt > 1) {                       
                     send_error_cnt = 0;
                     LoRaMacDeviceClass = CLASS_A;
@@ -1682,6 +1686,7 @@ void OnMacStateCheckTimerEvent( void )
                     //System_printf("rejoin network!\r\n");                   
                     Util_stopClock(&RxWindowTimer4);
                 }
+#endif
                 RetartTxNextPacketTimer(true, 15000 + randr(10000,50000));
             }
         }

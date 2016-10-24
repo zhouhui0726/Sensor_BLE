@@ -26,6 +26,8 @@ Maintainer: Miguel Luis and Gregory Cristian
  */
 #define LORAWAN_PUBLIC_NETWORK                      true
 
+#define LORAWAN_CLASSA_ENABLE                       true
+
 #if( OVER_THE_AIR_ACTIVATION != 0 )
 
 /*!
