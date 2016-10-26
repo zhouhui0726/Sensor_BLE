@@ -15,7 +15,7 @@ Description: LoRa MAC layer implementation
 
 License: Revised BSD License, see LICENSE.TXT file include in the project
 
-Maintainer: Miguel Luis ( Semtech ), Gregory Cristian ( Semtech ) and Daniel J盲ckle ( STACKFORCE )
+Maintainer: Miguel Luis ( Semtech ), Gregory Cristian ( Semtech ) and Daniel J?ckle ( STACKFORCE )
 */
 #ifdef LORA_WAN_ENABLE
 
@@ -892,16 +892,20 @@ static void R3_R4_timer_syn(uint8_t *payload, uint32_t TimeOnAir)
         AdrCtrlOn = true;
     } else {
         AdrCtrlOn = false;
+#ifndef  LORAWAN_CLASSA_ENABLE 
         for (i = 0; i <= DR_5; i++) {
             if (payload[11] & (1 << i) && (ChannelsDatarate != i)) {
                 ChannelsDatarate = i;
-                ChannelsDefaultDatarate = ChannelsDatarate;
                 System_printf("ChannelsDatarate = %d\r\n", ChannelsDatarate);
                 if (is_joined == 1) {
                     RetartTxNextPacketTimer(true, 1000);
                 }
             }
-        }   
+        }
+        if (ChannelsDefaultDatarate != ChannelsDatarate) {
+          ChannelsDefaultDatarate = ChannelsDatarate;
+        }
+#endif
     }
     
     if (payload[12]) {
@@ -948,7 +952,7 @@ static void R3_R4_timer_syn(uint8_t *payload, uint32_t TimeOnAir)
     system_time += TimeOnAir;
     System_printf("system_time : %d, r4_interval : %d\r\n", system_time, r4_interval);
 
-//设备是A类的时候就不用主动接收心跳或者下行数据
+//??ˇA`??????????ф???????
 #ifndef  LORAWAN_CLASSA_ENABLE   
     Restart_R3_R4_timer();
 #endif
@@ -1170,13 +1174,13 @@ static void OnRadioRxDone( uint8_t *payload, uint16_t size, int16_t rssi, int8_t
             break;
         case FRAME_TYPE_DATA_CONFIRMED_DOWN:
         case FRAME_TYPE_DATA_UNCONFIRMED_DOWN:
-            //判断报文个数
+            //???τ??
             for (i = 0; i < size; i++) {
                  if (payload[i] == 0xFA && payload[i + 1] == 0xAF) {
                     frame_count++;
                  }
             }
-            //根据报文个数来找地址
+            //???τ??4???
             for (i = 1; i <= frame_count; i++) {
                 if (i == 1) {
                     frame_start = 0;
@@ -1187,7 +1191,7 @@ static void OnRadioRxDone( uint8_t *payload, uint16_t size, int16_t rssi, int8_t
                 address |= ( (uint32_t)payload[pktHeaderLen++] << 8 );
                 address |= ( (uint32_t)payload[pktHeaderLen++] << 16 );
                 address |= ( (uint32_t)payload[pktHeaderLen++] << 24 );
-                //不是设备地址，查询时候是广播地址
+                //?ˇ????ì????ˇ????
                 if( address != LoRaMacDevAddr )
                 {                   
                     curMulticastParams = MulticastChannels;
@@ -1206,7 +1210,7 @@ static void OnRadioRxDone( uint8_t *payload, uint16_t size, int16_t rssi, int8_t
                     }
                     
                 } else {
-                    //是设备地址
+                    //ˇ????
                     is_my_frame = 1;
                     multicast = 0;
                     nwkSKey = LoRaMacNwkSKey;
@@ -1223,11 +1227,11 @@ static void OnRadioRxDone( uint8_t *payload, uint16_t size, int16_t rssi, int8_t
                 }
                 
                 if (is_my_frame) {
-                    //只有一个报文的情况
+                    //?????τ???
                     if (frame_count == 1) {
                         frame_size = size;
                     } else if (i == frame_count) {
-                    //最后一个报文
+                    //?????τ
                         frame_size = size - frame_start;
                     } else {
                         frame_size = pktHeaderLen - 2 - frame_start;
@@ -1240,7 +1244,7 @@ static void OnRadioRxDone( uint8_t *payload, uint16_t size, int16_t rssi, int8_t
                 }
             }
             
-            //地址不匹配，直接退出
+            //?????ì????
             if (!is_my_frame) {
                 // We are not the destination of this frame.
                 McpsIndication.Status = LORAMAC_EVENT_INFO_STATUS_ADDRESS_FAIL;
@@ -1549,7 +1553,7 @@ void OnMacStateCheckTimerEvent( void )
     {
         if( ( LoRaMacFlags.Bits.MlmeReq == 1 ) || ( ( LoRaMacFlags.Bits.McpsReq == 1 ) ) )
         {
-            //发送超时处理，进入重发流程
+            //?????mì????·?
             if( ( McpsConfirm.Status == LORAMAC_EVENT_INFO_STATUS_TX_TIMEOUT ) ||
                 ( MlmeConfirm.Status == LORAMAC_EVENT_INFO_STATUS_TX_TIMEOUT ) )
             {
@@ -1568,7 +1572,7 @@ void OnMacStateCheckTimerEvent( void )
             {
                 if( MlmeConfirm.MlmeRequest == MLME_JOIN )
                 {
-                    //组网成功后上行计数器清零
+                    //?θ?????????￡
                     if( MlmeConfirm.Status == LORAMAC_EVENT_INFO_STATUS_OK )
                     {
                         UpLinkCounter = 0;
@@ -1579,7 +1583,7 @@ void OnMacStateCheckTimerEvent( void )
             }
             if( ( LoRaMacFlags.Bits.MlmeReq == 1 ) || ( ( LoRaMacFlags.Bits.McpsReq == 1 ) ) )
             {
-                //对于unconfirmed上行消息可以重复发送几次来提高可靠性
+                //??unconfirmed??л?????????4?????
                 if( ( ChannelsNbRepCounter >= ChannelsNbRep ) || ( LoRaMacFlags.Bits.McpsInd == 1 ) )
                 {
                     ChannelsNbRepCounter = 0;
@@ -1608,7 +1612,7 @@ void OnMacStateCheckTimerEvent( void )
         {
             if( ( McpsConfirm.AckReceived == true ) || ( AckTimeoutRetriesCounter > AckTimeoutRetries ) )
             {
-                //confirmed上行消息收到ack回复
+                //confirmed??л???ack??
                 AckTimeoutRetry = false;
                 NodeAckRequested = false;
                 if( IsUpLinkCounterFixed == false )
@@ -1625,7 +1629,7 @@ void OnMacStateCheckTimerEvent( void )
         if( ( AckTimeoutRetry == true ) && ( ( LoRaMacState & MAC_TX_DELAYED ) == 0 ) )
         {
             AckTimeoutRetry = false;
-            //confirmed上行消息收没到ack回复，重发，降低发送的速率
+            //confirmed??л????ack??ì??ì??????ê
             if( ( AckTimeoutRetriesCounter < AckTimeoutRetries ) && ( AckTimeoutRetriesCounter <= MAX_ACK_RETRIES ) )
             {
                 AckTimeoutRetriesCounter++;
@@ -1643,7 +1647,7 @@ void OnMacStateCheckTimerEvent( void )
             }
             else
             {
-                //重发次数达到最大，恢复原来的设置
+                //????????ì???4???
 #if defined( USE_BAND_433 ) || defined( USE_BAND_780 ) || defined( USE_BAND_868 )
                 // Re-enable default channels LC1, LC2, LC3
                // ChannelsMask[0] = ChannelsMask[0] | ( LC( 1 ));// + LC( 2 ) + LC( 3 ) );
@@ -3880,11 +3884,11 @@ LoRaMacStatus_t LoRaMacMcpsRequest( McpsReq_t *mcpsRequest )
         {
             if( ValueInRange( datarate, LORAMAC_MIN_DATARATE, LORAMAC_MAX_DATARATE ) == true )
             {
-                ChannelsDatarate = datarate;
+//                ChannelsDatarate = datarate;
             }
             else
             {
-             // AdrCtrlOn == false时会导致不能发送数据
+             // AdrCtrlOn == false??????????
                 return LORAMAC_STATUS_PARAMETER_INVALID;
             }
         }

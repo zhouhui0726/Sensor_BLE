@@ -34,6 +34,7 @@ Maintainer: Miguel Luis and Gregory Cristian
  */
 #define LORAMAC_MIN_DATARATE                        DR_0
 
+#ifdef  LORAWAN_CLASSA_ENABLE 
 /*!
  * Minimal datarate that can be used by the node
  */
@@ -43,6 +44,17 @@ Maintainer: Miguel Luis and Gregory Cristian
  * Default datarate used by the node
  */
 #define LORAMAC_DEFAULT_DATARATE                    DR_0
+#else
+/*!
+ * Minimal datarate that can be used by the node
+ */
+#define LORAMAC_MAX_DATARATE                        DR_5
+
+/*!
+ * Default datarate used by the node
+ */
+#define LORAMAC_DEFAULT_DATARATE                    DR_2
+#endif
 
 /*!
  * Minimal Rx1 receive datarate offset
@@ -117,6 +129,7 @@ Maintainer: Miguel Luis and Gregory Cristian
 // Band = { DutyCycle, TxMaxPower, LastTxDoneTime, TimeOff }
 #define BAND0              { 100, TX_POWER_10_DBM, 0,  0 } //  1.0 %
 
+#ifdef  LORAWAN_CLASSA_ENABLE 
 /*!
  * LoRaMac default channels
  */
@@ -129,6 +142,16 @@ Maintainer: Miguel Luis and Gregory Cristian
 #define LC6                { 481700000, { ( ( DR_0 << 4 ) | DR_0 ) }, 0 }
 #define LC7                { 481900000, { ( ( DR_0 << 4 ) | DR_0 ) }, 0 }
 #define LC8                { 482100000, { ( ( DR_0 << 4 ) | DR_0 ) }, 0 }
+#else
+#define LC1                { 480300000, { ( ( DR_5 << 4 ) | DR_2 ) }, 0 }
+#define LC2                { 480500000, { ( ( DR_5 << 4 ) | DR_2 ) }, 0 }
+#define LC3                { 480700000, { ( ( DR_5 << 4 ) | DR_2 ) }, 0 }
+#define LC4                { 480900000, { ( ( DR_5 << 4 ) | DR_2 ) }, 0 }  
+#define LC5                { 481500000, { ( ( DR_5 << 4 ) | DR_2 ) }, 0 }
+#define LC6                { 481700000, { ( ( DR_5 << 4 ) | DR_2 ) }, 0 }
+#define LC7                { 481900000, { ( ( DR_5 << 4 ) | DR_2 ) }, 0 }
+#define LC8                { 482100000, { ( ( DR_5 << 4 ) | DR_2 ) }, 0 }
+#endif
 
 /*!
  * LoRaMac channels which are allowed for the join procedure
