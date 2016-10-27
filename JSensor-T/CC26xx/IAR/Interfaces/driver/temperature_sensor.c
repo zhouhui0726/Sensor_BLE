@@ -15,6 +15,7 @@
 
 #ifdef UART_PRINT_ENABLE
 #include "uart_printf.h"
+#include <xdc/runtime/System.h>
 #endif
 
 #include "temperature_sensor.h"
@@ -39,7 +40,7 @@ PIN_Handle dht11Pins_h;
 #define HIGH                        1
 #define LOW                         0
 
-//#define USE_FIRST_METHOD    1                                                 //经调试两种方法偶尔正确，多数情况会丢掉几bit数据
+//#define USE_FIRST_METHOD    1                                                 //经调试两种方法,第2种方法效果较好
 
 uint8_t dbgc[90],no=0;
 
@@ -169,7 +170,7 @@ void DHT11_Rst(void)
 #if 1
   PIN_setOutputEnable(dht11Pins_h,DHT11_PIN,true);
   DHT11_PIN_SetOUT(LOW); 	//拉低
-  delay_ms(20);    	//拉低至少18ms
+  delay_ms(30);//20    	//拉低至少18ms
   
   DHT11_PIN_SetOUT(HIGH); 	//拉高
   delay_us(30);     	//主机拉高20~40us
@@ -366,9 +367,9 @@ uint8_t DHT11_Read_Byte(void)
  *
  * @return  0 - ok, 1 - err
  */
-uint8_t temperatureSensorRead(dht11_data_t* dht11_value)
+int temperatureSensorRead(dht11_data_t* dht11_value)
 {
-  int ret = 0;
+  
 #ifdef UART_PRINT_ENABLE
   printS("\r\nRead DHT11 Info");
 #endif
@@ -379,6 +380,8 @@ uint8_t temperatureSensorRead(dht11_data_t* dht11_value)
   uint8_t buf[5];
   uint8_t i;
   no=0;
+  int ret = 0;
+  
   DHT11_Rst();
 
   if(DHT11_Check()==0)
@@ -388,7 +391,7 @@ uint8_t temperatureSensorRead(dht11_data_t* dht11_value)
       buf[i]=DHT11_Read_Byte();
     }
 #ifdef UART_PRINT_ENABLE
-    printV(dht11_val,5);
+    printV(buf,5);
 #endif
     
     if((buf[0]+buf[1]+buf[2]+buf[3])==buf[4])
@@ -398,14 +401,15 @@ uint8_t temperatureSensorRead(dht11_data_t* dht11_value)
     }
     else
     {
-      dht11_value->humi_value=0;
-      dht11_value->temp_value=0;
+      dht11_value->humi_value=255;
+      dht11_value->temp_value=255;
+      ret = -1;
     }
   }
   else 
   {
-    dht11_value->humi_value=0;
-    dht11_value->temp_value=0;
+    dht11_value->humi_value=255;
+    dht11_value->temp_value=255;
     ret = -1;
   }	
   
@@ -422,16 +426,18 @@ j++8个换成下一个数据
     uint8_t dht11_val[5];
     uint8_t laststate=HIGH;         //last state
     uint8_t counter=0;
-    uint8_t j=0,i=0;
+    uint8_t j=0,i=0,len = 0;
+    int ret = 0;
+    
     memset(dht11_val,0,5);
     memset(dbgc,0,90);
     //host send start signal  
     PIN_setOutputEnable(dht11Pins_h,DHT11_PIN,true);
     DHT11_PIN_SetOUT(LOW); 	    //set to low at least 18ms 
-    delay_ms(18);
+    delay_ms(30);//18
     DHT11_PIN_SetOUT(HIGH); 	   //set to high 20-40us
     //delay_10us(2);
-    delay_us(15);
+    delay_us(30);//15
      
     PIN_setOutputEnable(dht11Pins_h,DHT11_PIN,false);       //set pin to input
     for(i=0;i<85;i++)         
@@ -450,7 +456,7 @@ j++8个换成下一个数据
       if((i>=4)&&(i%2==0)){
         dbgc[j] = counter;
         dht11_val[j/8]<<=1;                     //write 1 bit to 0 by moving left (auto add 0)
-        if(counter>16)
+        if(counter>20)//16
         {
           //long mean 1
           dht11_val[j/8]|=1;                  //write 1 bit to 1 
@@ -459,61 +465,45 @@ j++8个换成下一个数据
         //dbgc[i] = counter;
       }    
     }
-    dbgc[j] = j;
+    len = j;
+    
 #if 1
 #ifdef UART_PRINT_ENABLE
     printV(dht11_val,5);
 #endif
 #endif
     // verify checksum 
-    //if((j>=40)&&(dht11_val[4]==((dht11_val[0]+dht11_val[1]+dht11_val[2]+dht11_val[3])& 0xFF)))
-    if((dht11_val[4]==((dht11_val[0]+dht11_val[1]+dht11_val[2]+dht11_val[3])& 0xFF)))
+    if((j==40)&&(dht11_val[4]==((dht11_val[0]+dht11_val[1]+dht11_val[2]+dht11_val[3])& 0xFF)))
+    //if((dht11_val[4]==((dht11_val[0]+dht11_val[1]+dht11_val[2]+dht11_val[3])& 0xFF)))
     {
       dht11_value->humi_value = dht11_val[0];
       dht11_value->temp_value = dht11_val[2];
     }
-    else if(j >= 37)
-    {//通过反复调试发送多数情况读取不到第5，6bit数据，导致之后数据整体左移2位
-      if(j == 37) i = 3;
-      else if(j == 38) i = 2;
-      else if(j == 39) i = 1;
-      //先把后续数据右移i位,得到温度 dht11_val[2],crc dht11_val[4] 
-      j = 16;
-      for(j = 16; j<40; j++)
-      {
-        dht11_val[j/8]<<=1;
-        dht11_val[j/8]|=((dbgc[j-i]) > 16 ? 1 : 0);
-      }
-      //由crc、温度得到湿度
-      if((dht11_val[4]==((dht11_val[0]+dht11_val[2])& 0xFF)))
-      {//有可能是湿度完整，后续数据有几位没有读取到
-        dht11_value->humi_value = dht11_val[0];
-      }
-      else
-      {
-        dht11_value->humi_value = dht11_val[4] - dht11_val[2];
-      }
-      dht11_value->temp_value = dht11_val[2];
-    }
     else
     {
+      ret = -1;
       dht11_value->humi_value = 255;
       dht11_value->temp_value = 255;
-      ret = -1;
     }
 #endif
     
-#if 0 //def UART_PRINT_ENABLE
+#if 1 //def UART_PRINT_ENABLE
   uint8_t tmp[32];
   memset(tmp,0,32);
-  sprintf(tmp,"temp:%d",dht11_value->temp_value);
+  sprintf(tmp,"temp:%d humi:%d",dht11_value->temp_value,dht11_value->humi_value);
   printS(tmp);
 
+#if 0
+#ifndef USE_FIRST_METHOD                                                         
   memset(tmp,0,32);
-  sprintf(tmp,"humi:%d",dht11_value->humi_value);
+  sprintf(tmp,"len:%d",len);
   printS(tmp);
+#endif
   
-  //printV(dbgc,90);
+  for(i=0; i<40; i++)
+    System_printf("%d ",dbgc[i]);
+  printS("");
+#endif
   
 #endif
     
@@ -521,13 +511,23 @@ j++8个换成下一个数据
 
 }
 
-int last_temp = 0;
-int last_humi = 0;
-uint8_t getTemperature(dht11_data_t* dht11_value)
+uint8_t last_temp = 0;//记录上一次上报值
+uint8_t last_humi = 0;
+extern uint8_t is_joined;
+/*********************************************************************
+ * @fn      getTemperature
+ *
+* @brief   循环采样（2s）
+ *
+ * @param   dht11_value
+ *
+ * @return  0 - ok, 1 - err
+ */
+int getTemperature(dht11_data_t* dht11_value)
 {
   int i = 0, no = 0,ret = -1;
   
-  //采集2次正常值比较 不一样 主动上报
+  //比较两次上报值
   
   ret = temperatureSensorRead(dht11_value);
   if(ret == -1)
@@ -538,18 +538,53 @@ uint8_t getTemperature(dht11_data_t* dht11_value)
   {
     if(dht11_value->temp_value == 0 && dht11_value->humi_value == 0)
     {
-      return ret;
+      ret = -1;
     }
     else
     {
-      if(last_temp != dht11_value->temp_value && last_humi != dht11_value->humi_value)
+#if 0
+      //温度变化上报
+      //if(last_temp != dht11_value->temp_value || last_humi != dht11_value->humi_value)
+      if(last_temp != dht11_value->temp_value)
       {
-        //report
-        RetartTxNextPacketTimer(true,100);
+        if(is_joined == 1)
+        {
+          //report
+          RetartTxNextPacketTimer(true,5);
+        }
+        last_temp = dht11_value->temp_value;//更新记录
+        last_humi = dht11_value->humi_value;
       }
-      last_temp = dht11_value->temp_value;
-      last_humi = dht11_value->humi_value;
-     
+#else
+      //温度相差2°以上上报
+      if(dht11_value->temp_value > last_temp)
+      {
+        if(dht11_value->temp_value -last_temp >= 2)
+        {
+          if(is_joined == 1)
+          {
+            //report
+            RetartTxNextPacketTimer(true,5);
+          }
+          last_temp = dht11_value->temp_value;//更新记录
+          last_humi = dht11_value->humi_value;
+        }
+      }
+      else if(dht11_value->temp_value < last_temp)
+      {
+        if(last_temp - dht11_value->temp_value >= 2)
+        {
+          if(is_joined == 1)
+          {
+            //report
+            RetartTxNextPacketTimer(true,5);
+          }
+          last_temp = dht11_value->temp_value;//更新记录
+          last_humi = dht11_value->humi_value;
+        }
+      }
+#endif
+  
       ret = 0;
     }
   }
@@ -558,18 +593,38 @@ uint8_t getTemperature(dht11_data_t* dht11_value)
   return ret;
 }
 
-uint8_t getTsensorValue(dht11_data_t* dht11_value)
+/*********************************************************************
+ * @fn      getTsensorValue
+ *
+* @brief   获取温湿度
+ *
+ * @param   dht11_value
+ *
+ * @return  0 - ok, 1 - err
+ */
+int getTsensorValue(dht11_data_t* dht11_value)
 {
-    if(last_temp != 0 && last_humi != 0)
+    if(last_temp != 0)
     {
-      dht11_value->temp_value = last_temp;
+      dht11_value->temp_value = last_temp;//当前更新值
       dht11_value->humi_value = last_humi;
     }
     else
     {
-      getTemperature(dht11_value);
+      if(getTemperature(dht11_value) == -1)
+      {
+        dht11_value->temp_value = last_temp;//采用上一次的值
+        dht11_value->humi_value = last_humi;
+      }
     }
     
+#if 1 //def UART_PRINT_ENABLE
+    uint8_t tmp[32];
+    memset(tmp,0,32);
+    sprintf(tmp,"[Tx] temp:%d humi:%d",dht11_value->temp_value,dht11_value->humi_value);
+    printS(tmp);
+#endif
+ 
     return 0;
   
 }

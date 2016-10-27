@@ -50,20 +50,29 @@ void temperatureSensorClose(void);
  *
  * @return  0 - ok, 1 - err
  */
-uint8_t temperatureSensorRead(dht11_data_t* dht11_value);
+int temperatureSensorRead(dht11_data_t* dht11_value);
 
 /*********************************************************************
- * @fn      temperatureSensorRead
+ * @fn      getTemperature
  *
- * @brief   read DHT11 sensor's value
+* @brief   循环采样（2s）
  *
  * @param   dht11_value
  *
  * @return  0 - ok, 1 - err
  */
-uint8_t getTemperature(dht11_data_t* dht11_value);
+int getTemperature(dht11_data_t* dht11_value);
 
-uint8_t getTsensorValue(dht11_data_t* dht11_value);
+/*********************************************************************
+ * @fn      getTsensorValue
+ *
+* @brief   获取温湿度
+ *
+ * @param   dht11_value
+ *
+ * @return  0 - ok, 1 - err
+ */
+int getTsensorValue(dht11_data_t* dht11_value);
 
 #ifdef __cplusplus
 }

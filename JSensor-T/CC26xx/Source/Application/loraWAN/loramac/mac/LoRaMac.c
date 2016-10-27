@@ -902,9 +902,6 @@ static void R3_R4_timer_syn(uint8_t *payload, uint32_t TimeOnAir)
                 }
             }
         }
-        if (ChannelsDefaultDatarate != ChannelsDatarate) {
-          ChannelsDefaultDatarate = ChannelsDatarate;
-        }
 #endif
     }
     
@@ -1165,7 +1162,9 @@ static void OnRadioRxDone( uint8_t *payload, uint16_t size, int16_t rssi, int8_t
                 MlmeConfirm.Status = LORAMAC_EVENT_INFO_STATUS_OK;
                 IsLoRaMacNetworkJoined = true;               
                 is_joined = 1;
+#ifndef  LORAWAN_CLASSA_ENABLE 
                 ChannelsDatarate = ChannelsDefaultDatarate;
+#endif
             }
             else
             {
