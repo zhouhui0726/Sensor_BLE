@@ -34,6 +34,8 @@ Maintainer: Miguel Luis and Gregory Cristian
  */
 #define LORAMAC_MIN_DATARATE                        DR_0
 
+#define LORAWAN_CLASSA_ENABLE                       true
+
 #ifdef  LORAWAN_CLASSA_ENABLE 
 /*!
  * Minimal datarate that can be used by the node
