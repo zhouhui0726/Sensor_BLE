@@ -107,6 +107,8 @@ static MulticastParams_t *MulticastChannels = NULL;
  */
 static DeviceClass_t LoRaMacDeviceClass;
 
+NetworkState_t network_state = NETWORK_INIT;
+
 /*!
  * Indicates if the node is connected to a private or public network
  */
@@ -392,7 +394,7 @@ static uint16_t ChannelsMaskRemaining[6];
  */
 static Rx2ChannelParams_t Rx2Channel = RX_WND_2_CHANNEL;
 
-#ifdef USE_CLASS_D 
+#ifdef JC_EXPAND 
 static Rx2ChannelParams_t Rx4Channel = RX_WND_4_CHANNEL;
 #endif
 /*!
@@ -750,7 +752,10 @@ static LoRaMacStatus_t ScheduleTx( void );
  */
 LoRaMacStatus_t SendFrameOnChannel( ChannelParams_t channel );
 
-
+NetworkState_t GetNetworkState(void)
+{
+    return network_state;
+}
 
 static void OnRadioTxDone( void )
 {
@@ -781,11 +786,10 @@ static void OnRadioTxDone( void )
 
     if( IsRxWindowsEnabled == true )
     {
-#ifdef USE_CLASS_D
+#ifdef JC_EXPAND
         rx1_window_time = ICall_getTicks() / 100;
 #endif
-//        Util_restartClock(&RxWindowTimer1, RxWindow1Delay + 15);    
-        Util_restartClock(&RxWindowTimer1, RxWindow1Delay);   
+        Util_restartClock(&RxWindowTimer1, RxWindow1Delay - 5);   
 //          System_printf("RxWindowTimer1 %d , %d\r\n", RxWindow1Delay - 10, ICall_getTicks() / 100);
         if( LoRaMacDeviceClass != CLASS_C )
         {
@@ -838,9 +842,7 @@ static void PrepareRxDoneAbort( void )
 //    System_printf("MacStateCheckTimer %d , %d\r\n", 10, ICall_getTicks() / 100);
 }
 
-extern uint8_t is_joined;
-
-#ifdef USE_CLASS_D
+#ifdef JC_EXPAND
 uint32_t dr0_5_interval[6];
 uint32_t local_time;
 uint32_t system_time;
@@ -851,16 +853,17 @@ uint32_t recive_timer_time;
 uint32_t last_beacon_time;
 uint32_t rx1_window_time;
 
-bool lost_beacon   = false;
-
 static void Restart_R3_R4_timer(void)
 {
     uint32_t temp;
     
-    lost_beacon      = false;
     last_beacon_time = ICall_getTicks() / 100;
     
     Util_stopClock(&RxWindowTimer4);
+    
+    if (network_state != NETWORK_JION) {
+        network_state = NETWORK_JION;  
+    }
     
     if( IsRxWindowsEnabled == true )
     {
@@ -887,22 +890,20 @@ static void R3_R4_timer_syn(uint8_t *payload, uint32_t TimeOnAir)
     dr0_5_interval[4] = payload[9] * 100;
     dr0_5_interval[5] = payload[10] * 100;
 
-    if (payload[11] & 0x40) {
-        System_printf("adr on\r\n"); 
-        AdrCtrlOn = true;
-    } else {
-        AdrCtrlOn = false;
-#ifndef  LORAWAN_CLASSA_ENABLE 
-        for (i = 0; i <= DR_5; i++) {
-            if (payload[11] & (1 << i) && (ChannelsDatarate != i)) {
-                ChannelsDatarate = i;
-                System_printf("ChannelsDatarate = %d\r\n", ChannelsDatarate);
-                if (is_joined == 1) {
+    if (LORAWAN_ADR_ON == true && LoRaMacDeviceClass == CLASS_D) {
+        if (payload[11] & 0x40) {
+            System_printf("adr on\r\n");         
+            AdrCtrlOn = true;
+        } else {
+            AdrCtrlOn = false;
+            for (i = 0; i <= DR_5; i++) {
+                if (payload[11] & (1 << i) && (ChannelsDatarate != i)) {
+                    ChannelsDatarate = i;
+                    System_printf("ChannelsDatarate = %d\r\n", ChannelsDatarate);
                     RetartTxNextPacketTimer(true, 1000);
                 }
             }
         }
-#endif
     }
     
     if (payload[12]) {
@@ -948,12 +949,11 @@ static void R3_R4_timer_syn(uint8_t *payload, uint32_t TimeOnAir)
     TimeOnAir += 8;
     system_time += TimeOnAir;
     System_printf("system_time : %d, r4_interval : %d\r\n", system_time, r4_interval);
-
-//??ˇA`??????????ф???????
-#ifndef  LORAWAN_CLASSA_ENABLE   
-    Restart_R3_R4_timer();
-#endif
-    
+        
+    if (LoRaMacDeviceClass == CLASS_D) {
+        Restart_R3_R4_timer();
+    }
+   
 }
 
 #endif
@@ -1005,24 +1005,6 @@ static void OnRadioRxDone( uint8_t *payload, uint16_t size, int16_t rssi, int8_t
     McpsIndication.McpsIndication = MCPS_UNCONFIRMED;  
     
     System_printf("RxDone %d, %d\r\n", ICall_getTicks() / 100, ChannelsDatarate);
-#if 0
-    switch (ChannelsDatarate) {
-        case DR_1:
-            TimeOnAir = Radio.TimeOnAir( MODEM_LORA, size + 8);
-            break;
-        case DR_2:        
-            TimeOnAir = Radio.TimeOnAir( MODEM_LORA, size);
-            break;  
-        case DR_0:  
-        case DR_3:
-        case DR_4:           
-        case DR_5:           
-            TimeOnAir = Radio.TimeOnAir( MODEM_LORA, size + 4);
-            break;
-        default:
-            break;
-    }
-#endif   
 
     TimeOnAir = Radio.TimeOnAir( MODEM_LORA, size);
     
@@ -1047,7 +1029,7 @@ static void OnRadioRxDone( uint8_t *payload, uint16_t size, int16_t rssi, int8_t
     System_printf("\r\n");
 #endif  
 
-#ifdef USE_CLASS_D
+#ifdef JC_EXPAND
     size -= 13;
 #endif
 
@@ -1093,7 +1075,7 @@ static void OnRadioRxDone( uint8_t *payload, uint16_t size, int16_t rssi, int8_t
                 Rx1DrOffset = ( LoRaMacRxPayload[11] >> 4 ) & 0x07;
                 Rx2Channel.Datarate = LoRaMacRxPayload[11] & 0x0F;
                 
-#ifdef USE_CLASS_D
+#ifdef JC_EXPAND
                 R3_R4_timer_syn(&payload[size], TimeOnAir);
 #endif
 #if 0
@@ -1161,10 +1143,8 @@ static void OnRadioRxDone( uint8_t *payload, uint16_t size, int16_t rssi, int8_t
 #endif
                 MlmeConfirm.Status = LORAMAC_EVENT_INFO_STATUS_OK;
                 IsLoRaMacNetworkJoined = true;               
-                is_joined = 1;
-#ifndef  LORAWAN_CLASSA_ENABLE 
-                ChannelsDatarate = ChannelsDefaultDatarate;
-#endif
+                network_state = NETWORK_JION;
+//                ChannelsDatarate = ChannelsDefaultDatarate;
             }
             else
             {
@@ -1173,13 +1153,13 @@ static void OnRadioRxDone( uint8_t *payload, uint16_t size, int16_t rssi, int8_t
             break;
         case FRAME_TYPE_DATA_CONFIRMED_DOWN:
         case FRAME_TYPE_DATA_UNCONFIRMED_DOWN:
-            //???τ??
+            //判断报文个数
             for (i = 0; i < size; i++) {
                  if (payload[i] == 0xFA && payload[i + 1] == 0xAF) {
                     frame_count++;
                  }
             }
-            //???τ??4???
+            //根据报文个数来找地址
             for (i = 1; i <= frame_count; i++) {
                 if (i == 1) {
                     frame_start = 0;
@@ -1190,7 +1170,7 @@ static void OnRadioRxDone( uint8_t *payload, uint16_t size, int16_t rssi, int8_t
                 address |= ( (uint32_t)payload[pktHeaderLen++] << 8 );
                 address |= ( (uint32_t)payload[pktHeaderLen++] << 16 );
                 address |= ( (uint32_t)payload[pktHeaderLen++] << 24 );
-                //?ˇ????ì????ˇ????
+                //不是设备地址，查询时候是广播地址
                 if( address != LoRaMacDevAddr )
                 {                   
                     curMulticastParams = MulticastChannels;
@@ -1209,7 +1189,7 @@ static void OnRadioRxDone( uint8_t *payload, uint16_t size, int16_t rssi, int8_t
                     }
                     
                 } else {
-                    //ˇ????
+                    //是设备地址
                     is_my_frame = 1;
                     multicast = 0;
                     nwkSKey = LoRaMacNwkSKey;
@@ -1226,11 +1206,11 @@ static void OnRadioRxDone( uint8_t *payload, uint16_t size, int16_t rssi, int8_t
                 }
                 
                 if (is_my_frame) {
-                    //?????τ???
+                    //只有一个报文的情况
                     if (frame_count == 1) {
                         frame_size = size;
                     } else if (i == frame_count) {
-                    //?????τ
+                    //最后一个报文
                         frame_size = size - frame_start;
                     } else {
                         frame_size = pktHeaderLen - 2 - frame_start;
@@ -1243,7 +1223,7 @@ static void OnRadioRxDone( uint8_t *payload, uint16_t size, int16_t rssi, int8_t
                 }
             }
             
-            //?????ì????
+            //地址不匹配，直接退出
             if (!is_my_frame) {
                 // We are not the destination of this frame.
                 McpsIndication.Status = LORAMAC_EVENT_INFO_STATUS_ADDRESS_FAIL;
@@ -1350,7 +1330,7 @@ static void OnRadioRxDone( uint8_t *payload, uint16_t size, int16_t rssi, int8_t
 //                       System_printf("fCtrl.Bits.Ack == 1!\r\n");
                     McpsConfirm.AckReceived = true;
                     McpsIndication.AckReceived = true;
-
+                    
                     // Stop the AckTimeout timer as no more retransmissions
                     // are needed.
 //                       TimerStop( &AckTimeoutTimer );
@@ -1417,7 +1397,7 @@ static void OnRadioRxDone( uint8_t *payload, uint16_t size, int16_t rssi, int8_t
                     }
                 }
                 LoRaMacFlags.Bits.McpsInd = 1;                   
-#ifdef USE_CLASS_D
+#ifdef JC_EXPAND
                 R3_R4_timer_syn(&payload[size], TimeOnAir);              
 #endif
             }
@@ -1431,7 +1411,7 @@ static void OnRadioRxDone( uint8_t *payload, uint16_t size, int16_t rssi, int8_t
             break;
         case FRAME_TYPE_PROPRIETARY:
             {          
-#ifdef USE_CLASS_D
+#ifdef JC_EXPAND
                 if ((payload[1] != 0x1) && (CRC8_Table(payload, 10) != payload[10])) {
                     System_printf("crc error!\r\n");
                     break;
@@ -1517,14 +1497,16 @@ static void OnRadioRxTimeout( void )
     {
         OnRxWindow2TimerEvent( );
     }
-
-#ifdef USE_CLASS_D    
-    if ((last_beacon_time != 0) && ((ICall_getTicks() / 100) - last_beacon_time  > 2 * r3_interval)) {
-         if (lost_beacon != true) {
-             lost_beacon = true;             
-             System_printf("last_beacon_time %d ,current_time %d\r\n", last_beacon_time, ICall_getTicks() / 100);
-             RetartTxNextPacketTimer(true, 15000 + randr(5000,20000));
-         }
+    
+#ifdef JC_EXPAND 
+    if ( LoRaMacDeviceClass == CLASS_D ) {
+        if ((last_beacon_time != 0) && ((ICall_getTicks() / 100) - last_beacon_time  > 2 * r3_interval)) {
+             if (network_state != NETWORK_LOST_BEACON) {
+                 network_state = NETWORK_LOST_BEACON;                
+                 System_printf("last_beacon_time %d ,current_time %d\r\n", last_beacon_time, ICall_getTicks() / 100);
+                 RetartTxNextPacketTimer(true, 15000 + randr(5000,20000));
+             }
+        }
     }
 #endif
 
@@ -1539,7 +1521,6 @@ static void OnRadioRxTimeout( void )
     }
 }
 
-static uint32_t send_error_cnt;
 void OnMacStateCheckTimerEvent( void )
 {
 //    TimerStop( &MacStateCheckTimer ); 
@@ -1552,7 +1533,7 @@ void OnMacStateCheckTimerEvent( void )
     {
         if( ( LoRaMacFlags.Bits.MlmeReq == 1 ) || ( ( LoRaMacFlags.Bits.McpsReq == 1 ) ) )
         {
-            //?????mì????·?
+            //发送超时处理，进入重发流程
             if( ( McpsConfirm.Status == LORAMAC_EVENT_INFO_STATUS_TX_TIMEOUT ) ||
                 ( MlmeConfirm.Status == LORAMAC_EVENT_INFO_STATUS_TX_TIMEOUT ) )
             {
@@ -1571,7 +1552,7 @@ void OnMacStateCheckTimerEvent( void )
             {
                 if( MlmeConfirm.MlmeRequest == MLME_JOIN )
                 {
-                    //?θ?????????￡
+                    //组网成功后上行计数器清零
                     if( MlmeConfirm.Status == LORAMAC_EVENT_INFO_STATUS_OK )
                     {
                         UpLinkCounter = 0;
@@ -1582,7 +1563,7 @@ void OnMacStateCheckTimerEvent( void )
             }
             if( ( LoRaMacFlags.Bits.MlmeReq == 1 ) || ( ( LoRaMacFlags.Bits.McpsReq == 1 ) ) )
             {
-                //??unconfirmed??л?????????4?????
+                //对于unconfirmed上行消息可以重复发送几次来提高可靠性
                 if( ( ChannelsNbRepCounter >= ChannelsNbRep ) || ( LoRaMacFlags.Bits.McpsInd == 1 ) )
                 {
                     ChannelsNbRepCounter = 0;
@@ -1611,7 +1592,7 @@ void OnMacStateCheckTimerEvent( void )
         {
             if( ( McpsConfirm.AckReceived == true ) || ( AckTimeoutRetriesCounter > AckTimeoutRetries ) )
             {
-                //confirmed??л???ack??
+                //confirmed上行消息收到ack回复
                 AckTimeoutRetry = false;
                 NodeAckRequested = false;
                 if( IsUpLinkCounterFixed == false )
@@ -1628,7 +1609,7 @@ void OnMacStateCheckTimerEvent( void )
         if( ( AckTimeoutRetry == true ) && ( ( LoRaMacState & MAC_TX_DELAYED ) == 0 ) )
         {
             AckTimeoutRetry = false;
-            //confirmed??л????ack??ì??ì??????ê
+            //confirmed上行消息收没到ack回复，重发，降低发送的速率
             if( ( AckTimeoutRetriesCounter < AckTimeoutRetries ) && ( AckTimeoutRetriesCounter <= MAX_ACK_RETRIES ) )
             {
                 AckTimeoutRetriesCounter++;
@@ -1646,7 +1627,7 @@ void OnMacStateCheckTimerEvent( void )
             }
             else
             {
-                //????????ì???4???
+                //重发次数达到最大，恢复原来的设置
 #if defined( USE_BAND_433 ) || defined( USE_BAND_780 ) || defined( USE_BAND_868 )
                 // Re-enable default channels LC1, LC2, LC3
                // ChannelsMask[0] = ChannelsMask[0] | ( LC( 1 ));// + LC( 2 ) + LC( 3 ) );
@@ -1680,17 +1661,10 @@ void OnMacStateCheckTimerEvent( void )
                     UpLinkCounter++;
                 }
                 
-#ifndef  LORAWAN_CLASSA_ENABLE                   
-                if (++send_error_cnt > 1) {                       
-                    send_error_cnt = 0;
-                    LoRaMacDeviceClass = CLASS_A;
-                    IsLoRaMacNetworkJoined = false;                     
-                    is_joined = 0;
-                    //System_printf("rejoin network!\r\n");                   
-                    Util_stopClock(&RxWindowTimer4);
+                if (network_state != NETWORK_SEND_FAIL) {
+                    network_state = NETWORK_SEND_FAIL;  
                 }
-#endif
-                RetartTxNextPacketTimer(true, 15000 + randr(10000,50000));
+                RetartTxNextPacketTimer(true, 600000 + randr(10000,60000));
             }
         }
     }
@@ -1759,7 +1733,7 @@ void OnTxDelayedTimerEvent( void )
 
 void OnRxWindow1TimerEvent( void )
 {
-    uint16_t symbTimeout = 5; // DR_2, DR_1, DR_0
+    uint16_t symbTimeout = 10; // DR_2, DR_1, DR_0
     int8_t datarate = 0;
     uint32_t bandwidth = 0; // LoRa 125 kHz
 
@@ -1793,8 +1767,8 @@ void OnRxWindow1TimerEvent( void )
 //    System_printf("OnRxWindow1TimerEvent %d, datarate %d, bandwidth %d, symbTimeout %d\r\n", ICall_getTicks() / 100, datarate, bandwidth, symbTimeout);
     RxWindowSetup( Channels[Channel].Frequency + 5000000, datarate, bandwidth, symbTimeout, false);
 //    RxWindowSetup( Channels[Channel].Frequency + 5000000, datarate, bandwidth, symbTimeout, false );
-//    System_printf("R1 %d, frq %d, datarate %d\r\n",
-//                  ICall_getTicks() / 100, Channels[Channel].Frequency + 5000000, datarate);
+    System_printf("R1 %d, frq %d, datarate %d\r\n",
+                 ICall_getTicks() / 100, Channels[Channel].Frequency + 5000000, datarate);
        
 
 #elif ( defined( USE_BAND_915 ) || defined( USE_BAND_915_HYBRID ) )
@@ -1868,7 +1842,7 @@ void OnRxWindow2TimerEvent( void )
     }
 }
 
-#ifdef USE_CLASS_D
+#ifdef JC_EXPAND
 
 void OnRxWindow4TimerEvent( void )
 {
@@ -1883,7 +1857,7 @@ void OnRxWindow4TimerEvent( void )
     }
     
     if ( Rx4Channel.Datarate == DR_5 ) { // DR_6, DR_5, DR_4, DR_3
-        symbTimeout = 15;
+        symbTimeout = 20;
     } else if ( Rx4Channel.Datarate == DR_6 ) {// LoRa 250 kHz
         bandwidth  = 1;      
         symbTimeout = 20;       
@@ -2541,6 +2515,7 @@ static void ProcessMacCommands( uint8_t *payload, uint8_t macIndex, uint8_t comm
 #endif
                         ChannelsNbRep = nbRep;
                     }
+                    
                     AddMacCommand( MOTE_MAC_LINK_ADR_ANS, status, 0 );
                     RetartTxNextPacketTimer(true, 1000);
                 }
@@ -2930,7 +2905,6 @@ LoRaMacStatus_t SendFrameOnChannel( ChannelParams_t channel )
     McpsConfirm.TxPower = ChannelsTxPower;
 
     Radio.SetChannel( channel.Frequency );
-    System_printf("Frequency = %d\r\n", channel.Frequency);
 
 #if defined( USE_BAND_433 ) || defined( USE_BAND_780 ) || defined( USE_BAND_868 )
     if( ChannelsDatarate == DR_7 )
@@ -2989,6 +2963,7 @@ LoRaMacStatus_t SendFrameOnChannel( ChannelParams_t channel )
     }       
     System_printf("\r\n");
 #endif    
+
     LoRaMacState |= MAC_TX_RUNNING;
     return LORAMAC_STATUS_OK;
 }
@@ -3022,6 +2997,7 @@ LoRaMacStatus_t LoRaMacInitialization( LoRaMacPrimitives_t *primitives, LoRaMacC
     IsRxWindowsEnabled = true;
     IsLoRaMacNetworkJoined = false;
     LoRaMacState = MAC_IDLE;
+    network_state = NETWORK_INIT;
 
 #if defined( USE_BAND_433 )
     ChannelsMask[0] = LC( 1 );// + LC( 2 ) + LC( 3 );
@@ -3882,12 +3858,12 @@ LoRaMacStatus_t LoRaMacMcpsRequest( McpsReq_t *mcpsRequest )
         if( AdrCtrlOn == false )
         {
             if( ValueInRange( datarate, LORAMAC_MIN_DATARATE, LORAMAC_MAX_DATARATE ) == true )
-            {
-//                ChannelsDatarate = datarate;
+            {//采用协商好的速率进行传输
+            //    ChannelsDatarate = datarate;
             }
             else
             {
-             // AdrCtrlOn == false??????????
+             // AdrCtrlOn == false时会导致不能发送数据
                 return LORAMAC_STATUS_PARAMETER_INVALID;
             }
         }

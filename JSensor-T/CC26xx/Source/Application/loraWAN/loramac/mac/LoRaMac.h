@@ -116,7 +116,7 @@
 /*!
  * Maximum number of times the MAC layer tries to get an acknowledge.
  */
-#define MAX_ACK_RETRIES                             5
+#define MAX_ACK_RETRIES                             3
 
 /*!
  * RSSI free threshold [dBm]
@@ -177,7 +177,24 @@ typedef enum eDeviceClass
      * LoRaWAN Specification V1.0, chapter 17ff
      */
     CLASS_C,
+    /*!
+     * LoRaWAN device class D
+     *
+     * JCNET define
+     */
+    CLASS_D,
 }DeviceClass_t;
+
+/*!
+ * LoRaWAN devices classes definition
+ */
+typedef enum eNetworkState
+{
+    NETWORK_INIT,
+    NETWORK_JION,
+    NETWORK_LOST_BEACON,
+    NETWORK_SEND_FAIL,
+}NetworkState_t;
 
 /*!
  * LoRaMAC channels parameters definition
@@ -1683,9 +1700,9 @@ extern void OnRxWindow2TimerEvent( void );
  */
 extern void OnAckTimeoutTimerEvent( void );
 
-#ifdef USE_CLASS_D
+extern NetworkState_t GetNetworkState(void);
 
-extern void OnRxWindow3TimerEvent( void );
+#ifdef JC_EXPAND
 
 extern void OnRxWindow4TimerEvent( void );
 
@@ -1695,7 +1712,6 @@ extern uint32_t r3_interval;
 extern uint32_t r4_interval;
 extern uint32_t recive_timer_time;
 extern uint32_t rx1_window_time;
-extern bool     lost_beacon;
 #endif
 
 #endif // __LORAMAC_H__

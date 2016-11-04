@@ -14,13 +14,6 @@ Maintainer: Miguel Luis and Gregory Cristian
 */
 #include "lboard.h"
 
-/*!
- * Unique Devices IDs register set ( STM32L1xxx )
- */
-#define         ID1                                 ( 0x1FFF7A10)
-#define         ID2                                 ( 0x1FFF7A14 )
-#define         ID3                                 ( 0x1FFF7A18 )
-
 extern uint8_t lora_ieee_addr[8];
 
 /*!
@@ -39,19 +32,7 @@ uint32_t BoardGetRandomSeed( void )
 
 void BoardGetUniqueId( uint8_t *id )
 {
-#if 0
-    id[7] = 0x03;
-    id[6] = 0x00;
-    id[5] = 0x00;
-    id[4] = 0x00;
-    id[3] = 0x00;
-    id[2] = 0x00;
-    id[1] = 0x00;
-    id[0] = 0x00;
-#else
     memcpy(id, lora_ieee_addr, 8);
-#endif
-
 }
 
 uint8_t BoardGetBatteryLevel( void ) 

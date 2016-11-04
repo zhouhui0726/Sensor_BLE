@@ -1,5 +1,5 @@
-#ifndef __SX1276_ARCH_H__
-#define __SX1276_ARCH_H__
+#ifndef __SX1278_ARCH_H__
+#define __SX1278_ARCH_H__
 /*
  / _____)             _              | |
 ( (____  _____ ____ _| |_ _____  ____| |__
@@ -43,50 +43,12 @@ Maintainer: Miguel Luis and Gregory Cristian
 #define RF_MID_BAND_THRESH                          525000000
 
 /*!
- * \brief Initializes the radio I/Os pins interface
- */
-void SX1278IoInit( void );
-
-/*!
- * \brief Initializes DIO IRQ handlers
- *
- * \param [IN] irqHandlers Array containing the IRQ callback functions
- */
-void SX1278IoIrqInit( DioIrqHandler **irqHandlers );
-
-/*!
- * \brief De-initializes the radio I/Os pins interface. 
- *
- * \remark Useful when going in MCU lowpower modes
- */
-void SX1278IoDeInit( void );
-
-/*!
  * \brief Gets the board PA selection configuration
  *
  * \param [IN] channel Channel frequency in Hz
  * \retval PaSelect RegPaConfig PaSelect value
  */
 uint8_t SX1278GetPaSelect( uint32_t channel );
-
-/*!
- * \brief Set the RF Switch I/Os pins in Low Power mode
- *
- * \param [IN] status enable or disable
- */
-void SX1278SetAntSwLowPower( bool status );
-
-/*!
- * \brief Initializes the RF Switch I/Os pins interface
- */
-void SX1278AntSwInit( void );
-
-/*!
- * \brief De-initializes the RF Switch I/Os pins interface 
- *
- * \remark Needed to decrease the power consumption in MCU lowpower modes
- */
-void SX1278AntSwDeInit( void );
 
 /*!
  * \brief Controls the antena switch if necessary.

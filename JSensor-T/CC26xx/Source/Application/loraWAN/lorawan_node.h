@@ -11,11 +11,21 @@
 #include <ti/sysbios/knl/Task.h>
 #include "util.h"
   
-
 #ifdef __cplusplus
 extern "C" {
 #endif
-
+/*
+typedef struct lorawan_dev_config {
+    uint8_t  dev_eui[8];
+    uint8_t  app_eui[8];
+    uint8_t  app_key[16];
+    uint32_t tx_duty_cycle; 
+    DeviceClass_t  class;
+    bool     adr_enable;
+    bool     tx_confirmed;
+    uint8_t  default_datarate;
+} lorawan_dev_config_t;
+*/
 /*!
  * Join requests trials duty cycle.
  */
@@ -36,14 +46,14 @@ extern "C" {
 /*!
  * LoRaWAN confirmed messages
  */
-#define LORAWAN_CONFIRMED_MSG_ON                    true
+#define LORAWAN_CONFIRMED_MSG_ON                    false
 
 /*!
  * LoRaWAN Adaptive Data Rate
  *
  * \remark Please note that when ADR is enabled the end-device should be static
  */
-#define LORAWAN_ADR_ON                              true
+#define LORAWAN_ADR_ON                              false
 
 #if defined( USE_BAND_868 )
 
@@ -107,7 +117,6 @@ extern void LoRaNetwork_Init(int flag,uint8_t speed);
 extern void JC_BLEPeripheral_LoraProcessIrq(void);
 extern void LoRaNetwork_eventsProcess(void);
 extern bool LoraWan_SendData(uint8_t IsTxConfirmed,  uint8_t AppPort, uint8_t AppDataSize, uint8_t* AppData);
-extern void lorawan_init(void);
 extern void RetartTxNextPacketTimer(uint8_t IsConfirmed, uint32_t delay);
 
 extern uint32_t lora_enable;

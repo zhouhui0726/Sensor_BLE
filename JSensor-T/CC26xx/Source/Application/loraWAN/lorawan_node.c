@@ -219,7 +219,7 @@ void LoRaNetwork_eventsProcess(void) {
 
         if (lorawan_events & LORAWAN_RX_WINDOW_TIMER4_EVT) {
             lorawan_events &= ~LORAWAN_RX_WINDOW_TIMER4_EVT;  
-#ifdef USE_CLASS_D            
+#ifdef JC_EXPAND            
             recive_timer_time += r4_interval;
             if ((recive_timer_time > 0) && (recive_timer_time > (ICall_getTicks() / 100))) {               
                 Util_restartClock(&RxWindowTimer4, recive_timer_time - (ICall_getTicks() / 100)); 
@@ -475,7 +475,6 @@ static bool SendFrame( void )
 
 void lorawan_main( void );
 
-uint8_t is_joined;
 
 /*!
  * \brief Function executed on TxNextPacket Timeout event
@@ -494,13 +493,11 @@ void OnTxNextPacketTimerEvent( void )
     {
         if( mibReq.Param.IsNetworkJoined == true )
         {
-            is_joined = 1;
             DeviceState = DEVICE_STATE_SEND;
             NextTx = true;
         }
         else
         {
-            is_joined = 0;
             DeviceState = DEVICE_STATE_JOIN;
             DeviceState = DEVICE_STATE_INIT;
         }
@@ -513,10 +510,18 @@ void OnTxNextPacketTimerEvent( void )
  */
 void RetartTxNextPacketTimer(uint8_t IsConfirmed, uint32_t delay)
 {   
-    if (lora_enable) {                  
-        IsTxConfirmed = IsConfirmed;  
-        Util_restartClock(&TxNextPacketTimer, delay); 
-    }  
+    MibRequestConfirm_t mibReq;
+    LoRaMacStatus_t status;
+
+    mibReq.Type = MIB_NETWORK_JOINED;
+    status = LoRaMacMibGetRequestConfirm( &mibReq );
+    
+    if( status == LORAMAC_STATUS_OK ) {        
+        if( mibReq.Param.IsNetworkJoined == true ) {                         
+            IsTxConfirmed = IsConfirmed;  
+            Util_restartClock(&TxNextPacketTimer, delay); 
+        }  
+    }
 }
 
 /*!
@@ -742,21 +747,9 @@ static void MlmeConfirm( MlmeConfirm_t *MlmeConfirm )
     NextTx = true;
 }
 
-extern uint8_t lora_ieee_addr[8];
-
-extern void TIMer_Handler( void );
-
-void lorawan_init(void)
-{
-    DeviceState = DEVICE_STATE_INIT;
-}
-
-extern  void SX1276Reset(void);
-
-LoRaMacPrimitives_t LoRaMacPrimitives;
-LoRaMacCallback_t   LoRaMacCallbacks;
-MibRequestConfirm_t mibReq; 
-static uint32_t      LoRaMacJoinCount;
+static LoRaMacPrimitives_t LoRaMacPrimitives;
+static LoRaMacCallback_t   LoRaMacCallbacks;
+static MibRequestConfirm_t mibReq; 
 
 #pragma optimize=none  
 /**
@@ -764,6 +757,7 @@ static uint32_t      LoRaMacJoinCount;
  */
 void lorawan_main( void )
 {     
+    static uint32_t  LoRaMacJoinCount = 0;
     
     switch( DeviceState )
     {
@@ -785,6 +779,10 @@ void lorawan_main( void )
 
             mibReq.Type = MIB_PUBLIC_NETWORK;
             mibReq.Param.EnablePublicNetwork = LORAWAN_PUBLIC_NETWORK;
+            LoRaMacMibSetRequestConfirm( &mibReq );
+            
+            mibReq.Type = MIB_DEVICE_CLASS;
+            mibReq.Param.Class = CLASS_A;
             LoRaMacMibSetRequestConfirm( &mibReq );
 
 #if defined( USE_BAND_868 )
@@ -858,8 +856,8 @@ void lorawan_main( void )
         {
             LoRaMacJoinCount = 0;
             if( NextTx == true )
-            {         
-                //System_printf("DEVICE_STATE_SEND %d\r\n", ICall_getTicks() / 100);
+            {                    
+//                System_printf("DEVICE_STATE_SEND %d\r\n", ICall_getTicks() / 100);
                 PrepareTxFrame( AppPort );
                 NextTx = SendFrame( );               
             }
@@ -869,7 +867,6 @@ void lorawan_main( void )
                 TxDutyCycleTime = 300000; // 1 ms
             }
 
-            // Schedule next packet transmission
             // Schedule next packet transmission
             if (ReportDutyCycleTime != 0) {
                 TxDutyCycleTime = ReportDutyCycleTime + randr(0, APP_TX_DUTYCYCLE );

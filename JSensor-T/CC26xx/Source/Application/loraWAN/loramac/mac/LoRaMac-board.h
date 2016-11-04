@@ -34,19 +34,6 @@ Maintainer: Miguel Luis and Gregory Cristian
  */
 #define LORAMAC_MIN_DATARATE                        DR_0
 
-#define LORAWAN_CLASSA_ENABLE                       true
-
-#ifdef  LORAWAN_CLASSA_ENABLE 
-/*!
- * Minimal datarate that can be used by the node
- */
-#define LORAMAC_MAX_DATARATE                        DR_0
-
-/*!
- * Default datarate used by the node
- */
-#define LORAMAC_DEFAULT_DATARATE                    DR_0
-#else
 /*!
  * Minimal datarate that can be used by the node
  */
@@ -55,8 +42,7 @@ Maintainer: Miguel Luis and Gregory Cristian
 /*!
  * Default datarate used by the node
  */
-#define LORAMAC_DEFAULT_DATARATE                    DR_2
-#endif
+#define LORAMAC_DEFAULT_DATARATE                    DR_0
 
 /*!
  * Minimal Rx1 receive datarate offset
@@ -111,7 +97,7 @@ Maintainer: Miguel Luis and Gregory Cristian
 // Channel = { Frequency [Hz], Datarate }
 #define RX_WND_2_CHANNEL                            { 480900000, DR_2 }
 
-#ifdef USE_CLASS_D 
+#ifdef JC_EXPAND 
 //recive
 #define RX_WND_4_CHANNEL                            { 480900000, DR_2 }
 
@@ -131,29 +117,18 @@ Maintainer: Miguel Luis and Gregory Cristian
 // Band = { DutyCycle, TxMaxPower, LastTxDoneTime, TimeOff }
 #define BAND0              { 100, TX_POWER_10_DBM, 0,  0 } //  1.0 %
 
-#ifdef  LORAWAN_CLASSA_ENABLE 
 /*!
  * LoRaMac default channels
  */
 // Channel = { Frequency [Hz], { ( ( DrMax << 4 ) | DrMin ) }, Band }
-#define LC1                { 480300000, { ( ( DR_0 << 4 ) | DR_0 ) }, 0 }
-#define LC2                { 480500000, { ( ( DR_0 << 4 ) | DR_0 ) }, 0 }
-#define LC3                { 480700000, { ( ( DR_0 << 4 ) | DR_0 ) }, 0 }
-#define LC4                { 480900000, { ( ( DR_0 << 4 ) | DR_0 ) }, 0 }  
-#define LC5                { 481500000, { ( ( DR_0 << 4 ) | DR_0 ) }, 0 }
-#define LC6                { 481700000, { ( ( DR_0 << 4 ) | DR_0 ) }, 0 }
-#define LC7                { 481900000, { ( ( DR_0 << 4 ) | DR_0 ) }, 0 }
-#define LC8                { 482100000, { ( ( DR_0 << 4 ) | DR_0 ) }, 0 }
-#else
-#define LC1                { 480300000, { ( ( DR_5 << 4 ) | DR_2 ) }, 0 }
-#define LC2                { 480500000, { ( ( DR_5 << 4 ) | DR_2 ) }, 0 }
-#define LC3                { 480700000, { ( ( DR_5 << 4 ) | DR_2 ) }, 0 }
-#define LC4                { 480900000, { ( ( DR_5 << 4 ) | DR_2 ) }, 0 }  
-#define LC5                { 481500000, { ( ( DR_5 << 4 ) | DR_2 ) }, 0 }
-#define LC6                { 481700000, { ( ( DR_5 << 4 ) | DR_2 ) }, 0 }
-#define LC7                { 481900000, { ( ( DR_5 << 4 ) | DR_2 ) }, 0 }
-#define LC8                { 482100000, { ( ( DR_5 << 4 ) | DR_2 ) }, 0 }
-#endif
+#define LC1                { 480300000, { ( ( DR_5 << 4 ) | DR_0 ) }, 0 }
+#define LC2                { 480500000, { ( ( DR_5 << 4 ) | DR_0 ) }, 0 }
+#define LC3                { 480700000, { ( ( DR_5 << 4 ) | DR_0 ) }, 0 }
+#define LC4                { 480900000, { ( ( DR_5 << 4 ) | DR_0 ) }, 0 }  
+#define LC5                { 481500000, { ( ( DR_5 << 4 ) | DR_0 ) }, 0 }
+#define LC6                { 481700000, { ( ( DR_5 << 4 ) | DR_0 ) }, 0 }
+#define LC7                { 481900000, { ( ( DR_5 << 4 ) | DR_0 ) }, 0 }
+#define LC8                { 482100000, { ( ( DR_5 << 4 ) | DR_0 ) }, 0 }
 
 /*!
  * LoRaMac channels which are allowed for the join procedure
