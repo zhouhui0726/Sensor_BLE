@@ -752,7 +752,7 @@ static LoRaMacStatus_t ScheduleTx( void );
  */
 LoRaMacStatus_t SendFrameOnChannel( ChannelParams_t channel );
 
-NetworkState_t GetNetworkState(void)
+uint8_t GetNetworkState(void)
 {
     return network_state;
 }

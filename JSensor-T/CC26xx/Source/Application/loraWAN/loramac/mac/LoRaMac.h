@@ -1700,7 +1700,7 @@ extern void OnRxWindow2TimerEvent( void );
  */
 extern void OnAckTimeoutTimerEvent( void );
 
-extern NetworkState_t GetNetworkState(void);
+extern uint8_t GetNetworkState(void);
 
 #ifdef JC_EXPAND
 
